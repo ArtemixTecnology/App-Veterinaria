@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Veterinária</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f8f9fa; }
+  header { background: #4CAF50; color: white; padding: 10px; text-align: center; }
+  header img { max-height: 60px; display: block; margin: 0 auto 5px; }
+  nav { display: flex; background: #333; }
+  nav button { flex: 1; padding: 15px; border: none; background: #333; color: white; cursor: pointer; font-size: 16px; }
+  nav button.active { background: #4CAF50; }
+  section { padding: 15px; }
+  form input, form select { width: 100%; padding: 10px; margin: 5px 0; }
+  form button { background: #4CAF50; color: white; padding: 10px; border: none; cursor: pointer; width: 100%; }
+  ul { list-style: none; padding: 0; }
+  li { background: white; margin: 5px 0; padding: 10px; border-radius: 5px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Cow_icon.svg" alt="Vaca">
+  <h1>App Veterinária</h1>
+</header>
+<nav>
+  <button id="tabCio" class="active" onclick="showTab('cio')">Calendário de Cio</button>
+  <button id="tabVacina" onclick="showTab('vacina')">Vacinas</button>
+  <button id="tabTutor" onclick="showTab('tutor')">Área Veterinário/Tutor</button>
+</nav>
+
+<section id="cio">
+  <h2>Registrar Cio</h2>
+  <form id="formCio">
+    <label>Data do Cio:</label>
+    <input type="date" id="cioData" required>
+    <button type="submit">Salvar</button>
+  </form>
+  <h3>Histórico</h3>
+  <ul id="listaCio"></ul>
+</section>
+
+<section id="vacina" style="display:none;">
+  <h2>Registrar Vacina</h2>
+  <form id="formVacina">
+    <label>Nome da Vacina:</label>
+    <input type="text" id="vacinaNome" required>
+    <label>Data da Aplicação:</label>
+    <input type="date" id="vacinaData" required>
+    <label>Frequência:</label>
+    <select id="vacinaFrequencia">
+      <option value="mensal">Mensal</option>
+      <option value="anual">Anual</option>
+    </select>
+    <button type="submit">Salvar</button>
+  </form>
+  <h3>Vacinas Registradas</h3>
+  <ul id="listaVacina"></ul>
+</section>
+
+<section id="tutor" style="display:none;">
+  <h2>Área do Veterinário/Tutor</h2>
+  <p>Lista de vacas e previsões de cio:</p>
+  <ul id="listaTutor"></ul>
+</section>
+
+<script>
+  const cioList = JSON.parse(localStorage.getItem('cioList')) || [];
+  const vacinaList = JSON.parse(localStorage.getItem('vacinaList')) || [];
+
+  function showTab(tab) {
+    document.getElementById('cio').style.display = tab === 'cio' ? 'block' : 'none';
+    document.getElementById('vacina').style.display = tab === 'vacina' ? 'block' : 'none';
+    document.getElementById('tutor').style.display = tab === 'tutor' ? 'block' : 'none';
+    document.getElementById('tabCio').classList.toggle('active', tab === 'cio');
+    document.getElementById('tabVacina').classList.toggle('active', tab === 'vacina');
+    document.getElementById('tabTutor').classList.toggle('active', tab === 'tutor');
+  }
+
+  function renderCio() {
+    const ul = document.getElementById('listaCio');
+    ul.innerHTML = '';
+    cioList.forEach(data => {
+      const proximoCio = new Date(data);
+      proximoCio.setDate(proximoCio.getDate() + 21);
+      ul.innerHTML += `<li>Cio em: ${data} | Próximo previsto: ${proximoCio.toLocaleDateString()}</li>`;
+    });
+  }
+
+  function renderVacina() {
+    const ul = document.getElementById('listaVacina');
+    ul.innerHTML = '';
+    vacinaList.forEach(v => {
+      let prox = new Date(v.data);
+      if (v.frequencia === 'mensal') prox.setMonth(prox.getMonth() + 1);
+      if (v.frequencia === 'anual') prox.setFullYear(prox.getFullYear() + 1);
+      ul.innerHTML += `<li>${v.nome} aplicada em: ${v.data} | Próxima: ${prox.toLocaleDateString()}</li>`;
+    });
+  }
+
+  function renderTutor() {
+    const ul = document.getElementById('listaTutor');
+    ul.innerHTML = '';
+    cioList.forEach(data => {
+      const proximoCio = new Date(data);
+      proximoCio.setDate(proximoCio.getDate() + 21);
+      const hoje = new Date();
+      const diffDias = Math.ceil((proximoCio - hoje) / (1000 * 60 * 60 * 24));
+      let alerta = diffDias <= 1 ? '⚠️ PREPARAR - Cio em breve!' : '';
+      ul.innerHTML += `<li>Cio registrado em: ${data} | Próximo: ${proximoCio.toLocaleDateString()} ${alerta}</li>`;
+    });
+  }
+
+  function verificarAlertas() {
+    cioList.forEach(data => {
+      const proximoCio = new Date(data);
+      proximoCio.setDate(proximoCio.getDate() + 21);
+      const hoje = new Date();
+      const diffDias = Math.ceil((proximoCio - hoje) / (1000 * 60 * 60 * 24));
+      if (diffDias === 1) {
+        if (Notification.permission === "granted") {
+          new Notification("Alerta de Cio", { body: "Uma vaca entrará no cio amanhã!" });
+        }
+      }
+    });
+  }
+
+  if ("Notification" in window) {
+    Notification.requestPermission();
+  }
+
+  document.getElementById('formCio').addEventListener('submit', e => {
+    e.preventDefault();
+    const data = document.getElementById('cioData').value;
+    cioList.push(data);
+    localStorage.setItem('cioList', JSON.stringify(cioList));
+    renderCio();
+    renderTutor();
+    e.target.reset();
+  });
+
+  document.getElementById('formVacina').addEventListener('submit', e => {
+    e.preventDefault();
+    const vacina = {
+      nome: document.getElementById('vacinaNome').value,
+      data: document.getElementById('vacinaData').value,
+      frequencia: document.getElementById('vacinaFrequencia').value
+    };
+    vacinaList.push(vacina);
+    localStorage.setItem('vacinaList', JSON.stringify(vacinaList));
+    renderVacina();
+    e.target.reset();
+  });
+
+  renderCio();
+  renderVacina();
+  renderTutor();
+  verificarAlertas();
+</script>
+</body>
+</html>
